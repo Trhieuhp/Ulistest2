@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULIS in My Eyes | ULIS trong mắt tôi (AI Enabled)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+        }
+        .card-shadow {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+        .testimonial-bg {
+            background-color: #e0f2f1; /* Light Teal for testimonials */
+        }
+        /* Style cho Modal (nguyên mẫu) */
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+            visibility: hidden;
+            opacity: 0;
+        }
+        .modal.open {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Custom Styles for Chatbot */
+        #chatbot-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        #chat-window {
+            height: 400px;
+            max-height: 80vh;
+            width: 350px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            transform: scale(0.95);
+            opacity: 0;
+            pointer-events: none;
+        }
+        #chat-window.open {
+            transform: scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #chat-history {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: #f4f7f9;
+        }
+        .message {
+            max-width: 85%;
+            padding: 8px 12px;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        .user-message {
+            background-color: #3b82f6; /* Blue-500 */
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 2px;
+        }
+        .ai-message {
+            background-color: #e0e7ff; /* Indigo-100 */
+            color: #1e3a8a; /* Indigo-900 */
+            margin-right: auto;
+            border-bottom-left-radius: 2px;
+        }
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+            animation: bounce 0.6s infinite alternate;
+        }
+        .loading-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .loading-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-5px); }
+        }
+        .timestamp {
+            font-size: 0.65rem; /* Reduced font size for timestamp */
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Firebase SDK setup (Mandatory for app context, even if static) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Global variables for Firebase setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        
+        if (firebaseConfig) {
+            app = initializeApp(firebaseConfig);
+            // FIX: Assign db and auth to window to make them globally accessible
+            window.db = getFirestore(app);
+            window.auth = getAuth(app);
+            
+            // Authentication setup
+            async function authenticate() {
+                try {
+                    // Use window.auth for consistency
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(window.auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } else {
+                        await signInAnonymously(window.auth);
+                        console.log("Signed in anonymously.");
+                    }
+                } catch (error) {
+                    console.error("Firebase Auth Error:", error.message);
+                }
+            }
+            authenticate();
+        } else {
+            console.warn("Firebase configuration not found. Running in standalone mode.");
+        }
+    </script>
+
+    <!-- Header & Hero Section (Content remains the same for brevity) -->
+    <header class="bg-blue-900 py-16 md:py-24">
+        <div class="container mx-auto px-6 max-w-6xl text-white">
+            <div class="grid md:grid-cols-2 gap-10 items-center">
+                <div class="text-center md:text-left">
+                    <h1 class="text-4xl md:text-6xl font-extrabold mb-4 tracking-tight">
+                        ULIS in My Eyes 👀
+                    </h1>
+                    <p class="text-2xl md:text-4xl font-light text-blue-200 mb-6">
+                        ULIS trong mắt tôi
+                    </p>
+                    <p class="mt-4 text-lg md:text-xl font-medium">
+                        Your Global Campus in the Heart of Hanoi.
+                        <span class="block md:inline-block">Cánh cửa hội nhập quốc tế của bạn tại Hà Nội.</span>
+                    </p>
+                    <a href="#focus" class="mt-8 inline-block bg-yellow-400 text-blue-900 font-bold py-3 px-8 rounded-full hover:bg-yellow-500 transition duration-300 transform hover:scale-105">
+                        Explore Our Languages 🗣️ | Khám phá các Ngôn ngữ
+                    </a>
+                </div>
+                <div class="rounded-xl overflow-hidden card-shadow">
+                    <!-- Tích hợp hình ảnh người dùng cung cấp -->
+                    <img src="http://googleusercontent.com/image_generation_content/0" 
+                         alt="[Hình ảnh Tòa nhà A1 ULIS và sinh viên]" 
+                         class="w-full h-auto object-cover"
+                         onerror="this.onerror=null; this.src='https://placehold.co/600x400/10b981/ffffff?text=ULIS+Building+and+Students';"
+                    >
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- NEW SECTION: Detailed University Introduction -->
+    <section id="explore" class="py-16 md:py-24 bg-white">
+        <div class="container mx-auto px-6 max-w-6xl">
+            <h2 class="text-3xl md:text-5xl font-bold text-center text-blue-800 mb-12">
+                ULIS: A Legacy of Global Education 🎓
+                <span class="block text-xl font-medium mt-2">ULIS: Di sản Giáo dục Toàn cầu</span>
+            </h2>
+            <div class="grid md:grid-cols-2 gap-10 items-center">
+                <div class="space-y-6 text-lg">
+                    <p class="font-bold text-blue-700">
+                        Official Name: University of Languages and International Studies (ULIS) - VNU
+                    </p>
+                    <p>
+                        Established in **1955**, ULIS is Vietnam's leading institution dedicated to language education and cross-cultural communication. With nearly **70 years of history**, we have shaped countless global citizens.
+                    </p>
+                    <p class="text-sm italic text-gray-600">
+                        ULIS được thành lập vào năm 1955, là cơ sở giáo dục hàng đầu của Việt Nam về đào tạo ngôn ngữ và giao tiếp đa văn hóa. Với gần 70 năm lịch sử, chúng tôi đã kiến tạo nên vô số công dân toàn cầu.
+                    </p>
+                    <ul class="list-disc list-inside space-y-3 ml-4 text-blue-800 font-medium">
+                        <li>🥇 Pioneer in Multilingual Education (Tiên phong trong đào tạo đa ngôn ngữ)</li>
+                        <li>🤝 Extensive International Partnership Network (Mạng lưới đối tác quốc tế rộng lớn)</li>
+                        <li>💡 Hub for Intercultural Competence (Trung tâm năng lực liên văn hóa)</li>
+                    </ul>
+                </div>
+                <div class="relative">
+                    <!-- Sử dụng placeholder mới cho tòa nhà chính -->
+                    <img src="https://placehold.co/600x400/10b981/ffffff?text=ULIS+Main+Building" alt="[Hình ảnh Tòa nhà chính ULIS]" class="rounded-xl card-shadow w-full h-auto">
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- VNU Connection Section (Kept as is) -->
+    <section id="vnu-link" class="py-16 bg-blue-50">
+        <div class="container mx-auto px-6 max-w-6xl">
+            <div class="bg-white p-8 md:p-12 rounded-xl card-shadow border-t-8 border-red-600">
+                <h2 class="text-3xl md:text-4xl font-bold text-center text-red-700 mb-4">
+                    The Power of VNU Connection 🇻🇳
+                </h2>
+                <p class="text-xl text-center text-gray-700 mb-6">
+                    As a member university of **Vietnam National University, Hanoi (VNU)**, ULIS students benefit from an extensive, interdisciplinary ecosystem.
+                </p>
+                <div class="grid md:grid-cols-3 gap-6 text-center">
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <span class="text-4xl block mb-2">📚</span>
+                        <p class="font-semibold text-blue-800">VNU Central Library</p>
+                        <p class="text-sm">Access to vast resources and modern study spaces.</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <span class="text-4xl block mb-2">🔬</span>
+                        <p class="font-semibold text-blue-800">Interdisciplinary Study</p>
+                        <p class="text-sm">Opportunities to take courses and majors at other VNU units.</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <span class="text-4xl block mb-2">🏅</span>
+                        <p class="font-semibold text-blue-800">Shared Facilities</p>
+                        <p class="text-sm">Utilize modern sports complexes, dormitories, and cultural centers.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Languages and Diversity Section (Kept as is) -->
+    <section id="focus" class="py-16 md:py-24 bg-blue-100">
+        <div class="container mx-auto px-6 max-w-6xl">
+            <h2 class="text-3xl md:text-5xl font-bold text-center text-blue-900 mb-6">
+                Your Window to the World: Languages at ULIS 🌐
+            </h2>
+            <p class="text-xl text-center text-blue-700 mb-12">
+                Click on any language to see details about its program and history at ULIS.
+                <span class="block text-base italic mt-2">Nhấn vào biểu tượng ngôn ngữ để xem chi tiết về chương trình và lịch sử tại ULIS.</span>
+            </p>
+            
+            <!-- Language Statistics Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                
+                <!-- English -->
+                <div id="lang-english" data-lang="English" class="lang-card cursor-pointer bg-white p-6 rounded-lg card-shadow transition duration-300 hover:scale-[1.05] border-b-4 border-red-600 hover:bg-red-50">
+                    <div class="text-4xl mb-2">🇬🇧🇺🇸</div>
+                    <h3 class="text-lg font-semibold text-gray-800">English</h3>
+                    <p class="text-sm text-gray-600">~ 40% of students</p>
+                    <p class="text-xs italic mt-1 text-blue-500">Major Language (Ngôn ngữ chính)</p>
+                </div>
+
+                <!-- Japanese -->
+                <div id="lang-japanese" data-lang="Japanese" class="lang-card cursor-pointer bg-white p-6 rounded-lg card-shadow transition duration-300 hover:scale-[1.05] border-b-4 border-red-400 hover:bg-red-50">
+                    <div class="text-4xl mb-2">🇯🇵</div>
+                    <h3 class="text-lg font-semibold text-gray-800">Japanese</h3>
+                    <p class="text-sm text-gray-600">~ 15% of students</p>
+                    <p class="text-xs italic mt-1 text-blue-500">Major Language (Ngôn ngữ chính)</p>
+                </div>
+
+                <!-- Korean -->
+                <div id="lang-korean" data-lang="Korean" class="lang-card cursor-pointer bg-white p-6 rounded-lg card-shadow transition duration-300 hover:scale-[1.05] border-b-4 border-red-500 hover:bg-red-50">
+                    <div class="text-4xl mb-2">🇰🇷</div>
+                    <h3 class="text-lg font-semibold text-gray-800">Korean</h3>
+                    <p class="text-sm text-gray-600">~ 12% of students</p>
+                    <p class="text-xs italic mt-1 text-blue-500">Major Language (Ngôn ngữ chính)</p>
+                </div>
+
+                <!-- Chinese -->
+                <div id="lang-chinese" data-lang="Chinese" class="lang-card cursor-pointer bg-white p-6 rounded-lg card-shadow transition duration-300 hover:scale-[1.05] border-b-4 border-red-700 hover:bg-red-50">
+                    <div class="text-4xl mb-2">🇨🇳</div>
+                    <h3 class="text-lg font-semibold text-gray-800">Chinese</h3>
+                    <p class="text-sm text-gray-600">~ 10% of students</p>
+                    <p class="text-xs italic mt-1 text-blue-500">Major Language (Ngôn ngữ chính)</p>
+                </div>
+                
+                <!-- French -->
+                <div id="lang-french" data-lang="French" class="lang-card cursor-pointer bg-white p-6 rounded-lg card-shadow transition duration-300 hover:scale-[1.05] border-b-4 border-blue-600 hover:bg-blue-50">
+                    <div class="text-4xl mb-2">🇫🇷</div>
+                    <h3 class="text-lg font-semibold text-gray-800">French</h3>
+                    <p class="text-sm text-gray-600">~ 8% of students</p>
+                    <p class="text-xs italic mt-1 text-blue-500">Major Language (Ngôn ngữ chính)</p>
+                </div>
+
+                <!-- German -->
+                <div id="lang-german" data-lang="German" class="lang-card cursor-pointer bg-white p-6 rounded-lg card-shadow transition duration-300 hover:scale-[1.05] border-b-4 border-black hover:bg-gray-50">
+                    <div class="text-4xl mb-2">🇩🇪</div>
+                    <h3 class="text-lg font-semibold text-gray-800">German</h3>
+                    <p class="text-sm text-gray-600">~ 5% of students</p>
+                    <p class="text-xs italic mt-1 text-blue-500">Major Language (Ngôn ngữ chính)</p>
+                </div>
+
+                <!-- Russian -->
+                <div id="lang-russian" data-lang="Russian" class="lang-card cursor-pointer bg-white p-6 rounded-lg card-shadow transition duration-300 hover:scale-[1.05] border-b-4 border-white hover:bg-gray-50">
+                    <div class="text-4xl mb-2">🇷🇺</div>
+                    <h3 class="text-lg font-semibold text-gray-800">Russian</h3>
+                    <p class="text-sm text-gray-600">~ 3% of students</p>
+                    <p class="text-xs italic mt-1 text-blue-500">Major Language (Ngôn ngữ chính)</p>
+                </div>
+
+                <!-- Other Languages -->
+                <div id="lang-minor" data-lang="Minor" class="lang-card cursor-pointer bg-white p-6 rounded-lg card-shadow transition duration-300 hover:scale-[1.05] border-b-4 border-yellow-500 hover:bg-yellow-50">
+                    <div class="text-4xl mb-2">🇪🇸🇮🇹...</div>
+                    <h3 class="text-lg font-semibold text-gray-800">Minor Languages</h3>
+                    <p class="text-sm text-gray-600">Vietnamese, Spanish, Italian, etc.</p>
+                    <p class="text-xs italic mt-1 text-blue-500">Các ngôn ngữ phụ</p>
+                </div>
+            </div>
+
+        </div>
+    </section>
+    
+    <!-- Clubs and Events Section (Kept as is) -->
+    <section id="clubs-events" class="py-16 md:py-24 bg-red-50">
+        <div class="container mx-auto px-6 max-w-6xl">
+            <h2 class="text-3xl md:text-5xl font-bold text-center text-red-800 mb-6">
+                Life Beyond the Classroom: Clubs & Events 🎉
+            </h2>
+            <p class="text-xl text-center text-red-600 mb-12">
+                Nơi rèn luyện kỹ năng mềm và khám phá đam mê của bạn tại ULIS.
+            </p>
+            
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Club Card 1: English Speaking Club -->
+                <div class="bg-white p-6 rounded-xl card-shadow border-l-4 border-blue-500 hover:shadow-lg transition duration-300">
+                    <h3 class="text-2xl font-bold text-blue-700 mb-2">English Speaking Club (EEC)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Câu Lạc Bộ Tiếng Anh</p>
+                    <p class="text-gray-700">Tổ chức các buổi giao lưu, tranh biện và thuyết trình hoàn toàn bằng tiếng Anh, giúp sinh viên tự tin hơn trong giao tiếp học thuật và đời sống.</p>
+                </div>
+                
+                <!-- Event Card 1: USH Gala -->
+                <div class="bg-white p-6 rounded-xl card-shadow border-l-4 border-yellow-500 hover:shadow-lg transition duration-300">
+                    <h3 class="text-2xl font-bold text-yellow-700 mb-2">USH Gala - Chào Tân Sinh Viên</h3>
+                    <p class="text-sm text-gray-500 mb-4">Sự kiện Văn nghệ lớn nhất năm</p>
+                    <p class="text-gray-700">Đêm nhạc hội hội hoành tráng chào đón sinh viên năm nhất, với các màn trình diễn đa dạng ngôn ngữ và văn hóa từ các khoa và CLB.</p>
+                </div>
+                
+                <!-- Club Card 2: Japanese Culture Club -->
+                <div class="bg-white p-6 rounded-xl card-shadow border-l-4 border-red-500 hover:shadow-lg transition duration-300">
+                    <h3 class="text-2xl font-bold text-red-700 mb-2">Japanese Culture Club (JCC)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Câu Lạc Bộ Văn Hóa Nhật Bản</p>
+                    <p class="text-gray-700">Nơi tìm hiểu về trà đạo, thư pháp, origami và tổ chức các lễ hội văn hóa Nhật Bản truyền thống (Matsuri) ngay tại sân trường.</p>
+                </div>
+
+                <!-- Event Card 2: Career Day -->
+                <div class="bg-white p-6 rounded-xl card-shadow border-l-4 border-teal-500 hover:shadow-lg transition duration-300">
+                    <h3 class="text-2xl font-bold text-teal-700 mb-2">ULIS Career Fair</h3>
+                    <p class="text-sm text-gray-500 mb-4">Ngày hội Hướng nghiệp & Việc làm</p>
+                    <p class="text-gray-700">Kết nối sinh viên với hơn 50 doanh nghiệp trong nước và quốc tế, đặc biệt trong lĩnh vực ngôn ngữ, du lịch và kinh doanh quốc tế.</p>
+                </div>
+
+                <!-- Club Card 3: Volunteer Club -->
+                <div class="bg-white p-6 rounded-xl card-shadow border-l-4 border-green-500 hover:shadow-lg transition duration-300">
+                    <h3 class="text-2xl font-bold text-green-700 mb-2">Youth Volunteer Club (YCC)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Câu Lạc Bộ Tình Nguyện</p>
+                    <p class="text-gray-700">Tham gia các chiến dịch cộng đồng, dạy tiếng Anh cho trẻ em khó khăn và tổ chức các hoạt động bảo vệ môi trường.</p>
+                </div>
+                
+                <!-- Event Card 3: ULIS Fire -->
+                <div class="bg-white p-6 rounded-xl card-shadow border-l-4 border-purple-500 hover:shadow-lg transition duration-300">
+                    <h3 class="text-2xl font-bold text-purple-700 mb-2">ULIS Fire - Hội Trại Truyền Thống</h3>
+                    <p class="text-sm text-gray-500 mb-4">Hoạt động tập thể lớn</p>
+                    <p class="text-gray-700">Hoạt động cắm trại, team-building và đốt lửa trại lớn, nhằm tăng cường tinh thần đồng đội và kết nối giữa các khóa sinh viên.</p>
+                </div>
+            </div>
+            
+            <p class="text-center text-lg mt-12 text-gray-600 italic">
+                Và còn rất nhiều CLB và sự kiện khác đang chờ bạn khám phá!
+            </p>
+        </div>
+    </section>
+
+    <!-- CAMPUS FACILITIES SECTION (REMAINS THE SAME) -->
+    <section id="campus-facilities" class="py-16 md:py-24 bg-white">
+        <div class="container mx-auto px-6 max-w-6xl">
+            <h2 class="text-3xl md:text-5xl font-bold text-center text-teal-700 mb-6">
+                Campus Facilities: Designed for Learning 💡
+                <span class="block text-xl font-medium mt-2">Cơ sở vật chất: Thiết kế tối ưu cho việc học tập</span>
+            </h2>
+            
+            <div class="grid md:grid-cols-3 gap-8 text-center">
+                <!-- In-Class Facilities -->
+                <div class="p-6 rounded-xl border-t-4 border-teal-500 bg-gray-50 card-shadow">
+                    <span class="text-5xl block mb-3">🖥️</span>
+                    <h3 class="text-xl font-semibold text-teal-800 mb-2">Classroom Technology</h3>
+                    <p class="text-gray-700 text-sm mb-4">Mọi phòng học đều được trang bị hiện đại để hỗ trợ phương pháp giảng dạy tương tác:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-xs space-y-1 text-gray-600 text-sm">
+                        <li>Bảng Tương Tác / Bảng Trắng</li>
+                        <li>Máy Chiếu độ phân giải cao</li>
+                        <li>Hệ thống Loa và âm thanh rõ ràng</li>
+                        <li>Wi-Fi tốc độ cao miễn phí</li>
+                    </ul>
+                </div>
+                
+                <!-- Meeting & Support Rooms -->
+                <div class="p-6 rounded-xl border-t-4 border-blue-500 bg-gray-50 card-shadow">
+                    <span class="text-5xl block mb-3">🤝</span>
+                    <h3 class="text-xl font-semibold text-blue-800 mb-2">Support & Collaboration Hubs</h3>
+                    <p class="text-gray-700 text-sm mb-4">Không gian dành cho hoạt động nhóm và hỗ trợ sinh viên toàn diện:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-xs space-y-1 text-gray-600 text-sm">
+                        <li>Phòng họp và làm việc nhóm (Meeting rooms)</li>
+                        <li>Văn phòng hỗ trợ học tập (Academic Support)</li>
+                        <li>Phòng tư vấn tâm lý (Counseling)</li>
+                        <li>Thư viện và khu tự học chung</li>
+                    </ul>
+                </div>
+
+                <!-- Logistics & Access -->
+                <div class="p-6 rounded-xl border-t-4 border-red-500 bg-gray-50 card-shadow">
+                    <span class="text-5xl block mb-3">🅿️</span>
+                    <h3 class="text-xl font-semibold text-red-800 mb-2">Logistics and Access</h3>
+                    <p class="text-gray-700 text-sm mb-4">Đảm bảo sự tiện lợi và an ninh cho sinh viên và cán bộ:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-xs space-y-1 text-gray-600 text-sm">
+                        <li>Nhà xe rộng rãi, có mái che (Parking lots)</li>
+                        <li>Ký túc xá hiện đại trong khuôn viên ĐHQG</li>
+                        <li>Khu phức hợp thể thao chung (VNU Sports Complex)</li>
+                        <li>Dịch vụ ăn uống và căng-tin đa dạng</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="mt-12 text-center">
+                 <img src="https://placehold.co/800x400/3b82f6/ffffff?text=ULIS+Modern+Classroom" alt="[Hình ảnh Lớp học hiện đại ULIS]" class="rounded-xl card-shadow w-full h-auto max-w-3xl mx-auto">
+            </div>
+        </div>
+    </section>
+
+    <!-- LOCATION SECTION (REMAINS THE SAME) -->
+    <section id="location" class="py-16 md:py-24 bg-blue-50">
+        <div class="container mx-auto px-6 max-w-6xl">
+            <h2 class="text-3xl md:text-5xl font-bold text-center text-blue-800 mb-12">
+                Location: Right in the Cultural Hub of Hanoi 🏙️
+                <span class="block text-xl font-medium mt-2">Vị trí: Trung tâm Văn hóa & Học thuật Hà Nội</span>
+            </h2>
+            <div class="md:flex md:space-x-12 items-center">
+                <div class="md:w-1/2 mb-8 md:mb-0">
+                    <!-- Sử dụng placeholder mới cho Vị trí -->
+                    <img src="https://placehold.co/600x400/3b82f6/ffffff?text=Hanoi+City+Map+ULIS+Location" alt="[Hình ảnh Bản đồ Vị trí ULIS]" class="rounded-xl card-shadow w-full h-auto">
+                </div>
+                <div class="md:w-1/2">
+                    <h3 class="text-2xl font-semibold text-blue-700 mb-4">
+                        A Strategic Spot in the VNU Ecosystem
+                    </h3>
+                    <p class="text-lg mb-4">
+                        ULIS is strategically located within the Vietnam National University (VNU) campus area, sharing resources and infrastructure with other top VNU member universities. This location provides a vibrant, academic ecosystem.
+                    </p>
+                    <p class="text-lg mb-4">
+                        We are conveniently situated near major bus routes and just a short ride away from Hanoi's Old Quarter, Hoan Kiem Lake, and major cultural sites. This allows students to effortlessly balance rigorous academic life with exploring the city's rich history and vibrant street life.
+                    </p>
+                    <p class="text-sm italic text-gray-600 border-l-4 border-yellow-500 pl-3 pt-1">
+                        ULIS nằm trong khuôn viên Đại học Quốc gia Hà Nội, gần các tuyến xe buýt chính và chỉ cách khu Phố Cổ một đoạn di chuyển ngắn. Vị trí hoàn hảo để sinh viên khám phá văn hóa và lịch sử thủ đô.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section (Kept as is) -->
+    <section id="testimonials" class="py-16 md:py-24 testimonial-bg">
+        <div class="container mx-auto px-6 max-w-6xl">
+            <h2 class="text-3xl md:text-5xl font-bold text-center text-teal-800 mb-12">
+                Hear From Our Students 🗣️ | Lắng nghe sinh viên
+            </h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                
+                <!-- Testimonial 1 -->
+                <div class="bg-white p-6 rounded-xl card-shadow">
+                    <p class="text-2xl font-serif text-teal-600 mb-4">“</p>
+                    <p class="italic text-gray-700 mb-4">
+                        "The professors are amazing! They don't just teach the curriculum, they share their experience living and working globally. Learning Japanese here felt incredibly authentic, and living in Hanoi is an adventure every single day."
+                    </p>
+                    <div class="flex items-center">
+                        <img src="https://placehold.co/40x40/6b7280/ffffff?text=A.K" alt="Student Avatar A.K" class="rounded-full w-10 h-10 mr-3">
+                        <div>
+                            <p class="font-semibold">Anna K. (Japan Exchange)</p>
+                            <p class="text-sm text-gray-500">Exchange Student, Osaka University, Japan</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Testimonial 2 -->
+                <div class="bg-white p-6 rounded-xl card-shadow">
+                    <p class="text-2xl font-serif text-teal-600 mb-4">“</p>
+                    <p class="italic text-gray-700 mb-4">
+                        "I chose ULIS for its multicultural environment. Just stepping out of the dorm, you can hear English, Korean, Chinese... It makes me feel like I'm truly at the center of the world. Everyone is so friendly."
+                        <span class="block text-xs mt-1">(Tôi đã chọn ULIS vì môi trường đa văn hóa. Chỉ cần bước chân ra khỏi ký túc xá, bạn đã có thể nghe thấy nhiều thứ tiếng.)</span>
+                    </p>
+                    <div class="flex items-center">
+                        <img src="https://placehold.co/40x40/6b7280/ffffff?text=L.W" alt="Student Avatar L.W" class="rounded-full w-10 h-10 mr-3">
+                        <div>
+                            <p class="font-semibold">Lukas W. (Full-time)</p>
+                            <p class="text-sm text-gray-500">Full-time Student, from Germany</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Contact/Inquiry Form (Kept as is) -->
+    <section id="contact" class="py-16 md:py-24 bg-white">
+        <div class="container mx-auto px-6 max-w-4xl text-center">
+            <h2 class="text-3xl md:text-5xl font-bold text-blue-800 mb-6">
+                Ready to Start Your Journey? 🚀
+            </h2>
+            <p class="text-xl mb-8 text-gray-600">
+                Send us your questions. We will respond within 24 hours!
+                <span class="block text-base italic mt-1">Hãy gửi câu hỏi cho chúng tôi. Chúng tôi sẽ trả lời trong vòng 24 giờ!</span>
+            </p>
+            
+            <form class="bg-blue-50 p-8 rounded-xl card-shadow text-left">
+                <div class="mb-4">
+                    <label for="name" class="block text-sm font-medium text-gray-700">Full Name / Họ và tên</label>
+                    <input type="text" id="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email Address / Địa chỉ Email</label>
+                    <input type="email" id="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label for="message" class="block text-sm font-medium text-gray-700">Your Inquiry / Nội dung cần hỏi</label>
+                    <textarea id="message" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div class="text-center">
+                    <button type="submit" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-10 rounded-full hover:bg-blue-700 transition duration-300 transform hover:scale-105">
+                        Submit Inquiry | Gửi câu hỏi
+                    </button>
+                    <!-- Note: This button is for visual representation only. Actual form submission requires backend code. -->
+                </div>
+            </form>
+        </div>
+    </section>
+
+
+    <!-- Footer (Kept as is) -->
+    <footer class="bg-blue-900 text-white py-10">
+        <div class="container mx-auto px-6 max-w-6xl text-center md:flex md:justify-between md:items-center">
+            <div class="mb-4 md:mb-0">
+                <h4 class="text-xl font-semibold text-yellow-400">ULIS | VNU Hanoi</h4>
+                <p class="text-sm text-blue-200">University of Languages and International Studies</p>
+            </div>
+            <div class="flex justify-center space-x-6">
+                <!-- Social Icons -->
+                <a href="#" class="text-blue-300 hover:text-white transition duration-200">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.873v-6.985h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.775-1.63 1.564V12h2.775l-.444 2.898h-2.331v6.985C18.343 21.128 22 16.991 22 12c0-5.523-4.477-10-10-10z"/>
+                    </svg>
+                </a>
+                <a href="#" class="text-blue-300 hover:text-white transition duration-200">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M24 4.557c-.883.435-1.874.724-2.899.855.955-.578 1.69-1.497 2.04-2.572-.898.537-1.899.922-2.93 1.137-.85-.905-2.06-1.47-3.398-1.47-3.042 0-5.517 2.476-5.517 5.517 0 .43.045.852.128 1.259-4.58-2.29-8.625-4.846-11.332-8.312-.477.818-.755 1.764-.755 2.775 0 1.912.972 3.606 2.448 4.593-.903-.028-1.75-.28-2.5-.693v.068c0 2.674 1.902 4.908 4.402 5.422-.465.126-.957.195-1.46.195-.35 0-.69-.035-1.03-.095.698 2.175 2.705 3.765 5.074 3.809-1.892 1.48-4.288 2.37-6.892 2.37-.447 0-.888-.027-1.32-.078 2.446 1.576 5.378 2.49 8.528 2.49 10.23 0 15.83-8.49 15.83-15.83 0-.17-.004-.336-.009-.502.996-.723 1.86-1.62 2.532-2.652z"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+        <p class="text-center text-xs mt-6 text-blue-300">
+            Design Concept by Gemini AI. All rights reserved. (Sản phẩm truyền thông cá nhân, không đại diện cho Nhà trường).
+        </p>
+    </footer>
+
+    <!-- Language Detail Modal Structure (Kept as is) -->
+    <div id="language-modal" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <!-- Overlay -->
+        <div class="absolute inset-0 bg-gray-900/70" onclick="closeModal()"></div>
+        
+        <!-- Modal Content -->
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 relative card-shadow transform scale-95 transition-transform duration-300">
+            <button class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-2xl" onclick="closeModal()">
+                &times;
+            </button>
+            <h3 id="modal-title" class="text-3xl font-bold text-blue-800 mb-4 flex items-center">
+                <span id="modal-flag" class="mr-3 text-4xl"></span> 
+                <span id="modal-lang-name">Language Name</span>
+            </h3>
+            <p class="text-base text-gray-700 mb-2">
+                <span class="font-semibold text-blue-600">Introduced at ULIS:</span> 
+                <span id="modal-year" class="font-medium text-gray-900">N/A</span>
+            </p>
+            <p class="text-base text-gray-700 mb-4">
+                <span class="font-semibold text-blue-600">Estimated Students:</span> 
+                <span id="modal-percentage" class="font-medium text-gray-900">N/A</span>
+            </p>
+            <p id="modal-detail" class="text-gray-800 leading-relaxed border-t pt-4 mt-4">
+                Detailed description of the language program.
+            </p>
+            <p class="text-sm italic text-yellow-600 mt-6">
+                (Lưu ý: Dữ liệu số liệu học sinh chỉ là ước tính.)
+            </p>
+        </div>
+    </div>
+    
+    <!-- AI Chatbot UI -->
+    <div id="chatbot-container">
+        <!-- Chat Button -->
+        <button id="chat-button" class="bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition duration-300 transform hover:scale-110 focus:outline-none">
+            <!-- Icon SVG for Chat -->
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 4v-4z"></path>
+            </svg>
+        </button>
+
+        <!-- Chat Window -->
+        <div id="chat-window" class="absolute bottom-0 right-0 mb-16">
+            <div class="bg-blue-800 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <h4 class="text-lg font-semibold flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Hỏi Đáp ULIS AI
+                </h4>
+                <button onclick="toggleChat()" class="text-white hover:text-blue-300 text-xl font-bold">&times;</button>
+            </div>
+            
+            <div id="chat-history">
+                <!-- AI Welcome Message -->
+                <div class="ai-message text-sm">
+                    Chào bạn! Tôi là trợ lý AI của ULIS. Tôi có thể giúp bạn tìm hiểu về chương trình đào tạo, cơ sở vật chất, tuyển sinh và đời sống sinh viên. Hãy đặt câu hỏi nhé!
+                    <span class="block mt-1 text-xs opacity-75">Bây giờ</span>
+                </div>
+            </div>
+
+            <div class="p-3 border-t">
+                <form id="chat-form" class="flex">
+                    <input type="text" id="chat-input" placeholder="Nhập câu hỏi của bạn..." 
+                           class="flex-grow p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <button type="submit" id="send-button" 
+                            class="bg-blue-600 text-white p-2 rounded-r-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50">
+                        <!-- Send Icon SVG -->
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- JavaScript for Modal & Chatbot Logic -->
+    <script>
+        // --- Modal Logic (Kept as is) ---
+        const languageData = {
+            'English': { year: 1955, detail: 'English is the first and largest major, serving as the primary language of global communication, business, and core curriculum, with a strong focus on pedagogy and translation.', flag: '🇬🇧🇺🇸', percentage: '~ 40%' },
+            'Japanese': { year: 1993, detail: 'A high-demand major focusing on comprehensive language skills, Japanese culture, literature, and proficiency in interpretation/translation for business and tourism.', flag: '🇯🇵', percentage: '~ 15%' },
+            'Korean': { year: 1994, detail: 'A crucial major for bridging economic and cultural ties between Vietnam and Korea. The program covers language acquisition, Korean studies, translation, and tourism.', flag: '🇰🇷', percentage: '~ 12%' },
+            'Chinese': { year: 1955, detail: 'One of the original majors. The program focuses on comprehensive language skills (Mandarin), cultural competence, and proficiency for regional trade and diplomacy.', flag: '🇨🇳', percentage: '~ 10%' },
+            'French': { year: 1955, detail: 'A long-standing European language major, emphasizing literature, history, and international cooperation. ULIS is a key partner in Francophonie education.', flag: '🇫🇷', percentage: '~ 8%' },
+            'German': { year: 1993, detail: 'Taught for academic, science, technology, and business pathways. The program is highly valued for advanced European studies and technical translation.', flag: '🇩🇪', percentage: '~ 5%' },
+            'Russian': { year: 1955, detail: 'Historically significant major, now focused on modern Russian business, international relations, and cultural studies.', flag: '🇷🇺', percentage: '~ 3%' },
+            'Minor': { year: 2005, detail: 'Includes various languages like Spanish, Italian, Portuguese, Arabic, and others offered as secondary and minor courses to enhance student versatility.', flag: '🇪🇸🇮🇹...', percentage: '< 10%' },
+        };
+
+        const modal = document.getElementById('language-modal');
+        const modalLangName = document.getElementById('modal-lang-name'); 
+        const modalFlag = document.getElementById('modal-flag');
+        const modalYear = document.getElementById('modal-year');
+        const modalPercentage = document.getElementById('modal-percentage');
+        const modalDetail = document.getElementById('modal-detail');
+        const langCards = document.querySelectorAll('.lang-card');
+
+        function openModal(langKey) {
+            const data = languageData[langKey];
+            if (data) {
+                modalLangName.textContent = langKey;
+                modalFlag.textContent = data.flag;
+                modalYear.textContent = data.year;
+                modalPercentage.textContent = data.percentage;
+                modalDetail.textContent = data.detail;
+                modal.classList.add('open');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeModal() {
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        langCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const langKey = card.getAttribute('data-lang');
+                openModal(langKey);
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // --- AI Chatbot Logic ---
+        const chatButton = document.getElementById('chat-button');
+        const chatWindow = document.getElementById('chat-window');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatHistory = document.getElementById('chat-history');
+        const sendButton = document.getElementById('send-button');
+        
+        // Toggles the chat window open/close state
+        function toggleChat() {
+            chatWindow.classList.toggle('open');
+            // Change button icon if necessary (optional: not implemented here for simplicity)
+        }
+
+        chatButton.addEventListener('click', toggleChat);
+        
+        // Function to scroll chat history to the bottom
+        function scrollChatToBottom() {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // Function to display a message (Improved to include timestamps and better formatting)
+        function displayMessage(text, isUser, sources = []) {
+            const msgDiv = document.createElement('div');
+            // Add custom class for user message alignment of timestamp
+            msgDiv.className = `message text-sm ${isUser ? 'user-message' : 'ai-message'}`;
+            
+            // Get current time for timestamp
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+            // --- Improved Text Formatting ---
+            let formattedText = text;
+            
+            // 1. Handle Bolding
+            formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // 2. Convert newlines to breaks for basic readability inside the message bubble
+            const contentDiv = document.createElement('div');
+            contentDiv.innerHTML = formattedText.split('\n').join('<br>');
+
+            msgDiv.appendChild(contentDiv);
+            // --- End Improved Text Formatting ---
+
+            // Add sources
+            if (sources.length > 0) {
+                const sourceDiv = document.createElement('div');
+                sourceDiv.className = 'text-xs mt-2 pt-2 border-t border-gray-400 text-gray-700 font-normal italic';
+                let sourceHtml = 'Nguồn tham khảo: ';
+                sources.forEach((source, index) => {
+                    sourceHtml += `<a href="${source.uri}" target="_blank" class="text-blue-500 hover:underline">${source.title || 'Link ' + (index + 1)}</a>${index < sources.length - 1 ? ' | ' : ''}`;
+                });
+                sourceDiv.innerHTML = sourceHtml;
+                msgDiv.appendChild(sourceDiv);
+            }
+            
+            // Add timestamp
+            const timeSpan = document.createElement('span');
+            timeSpan.className = `timestamp block ${isUser ? 'text-right' : 'text-left'}`;
+            timeSpan.textContent = timeString;
+
+            msgDiv.appendChild(timeSpan);
+            
+            chatHistory.appendChild(msgDiv);
+            scrollChatToBottom();
+        }
+
+        // Function to show/hide loading indicator
+        let loadingIndicator;
+        function showLoading() {
+            loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'ai-message text-sm';
+            loadingIndicator.innerHTML = 'AI đang gõ <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>';
+            chatHistory.appendChild(loadingIndicator);
+            sendButton.disabled = true;
+            chatInput.disabled = true;
+            scrollChatToBottom();
+        }
+
+        function hideLoading() {
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+            sendButton.disabled = false;
+            chatInput.disabled = false;
+            chatInput.focus();
+        }
+
+        // Core function to call the Gemini API
+        async function fetchGeminiResponse(prompt, retryCount = 0) {
+            showLoading();
+            
+            const systemPrompt = "Bạn là trợ lý AI của ULIS (Trường Đại học Ngoại ngữ - Đại học Quốc gia Hà Nội). Vai trò của bạn là trả lời các câu hỏi về trường, các chương trình đào tạo, cơ sở vật chất, tuyển sinh và đời sống sinh viên dựa trên kết quả tìm kiếm. Luôn trả lời ngắn gọn, bằng giọng điệu hỗ trợ, và **bằng tiếng Việt**. Nếu bạn không tìm thấy thông tin liên quan, hãy lịch sự thông báo rằng bạn không có chi tiết cụ thể đó.";
+            const apiKey = ""; // Canvas will provide this key at runtime
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                // Note: The prompt is in Vietnamese, but Google Search API is case-insensitive and can handle Vietnamese queries. 
+                // However, for best results, we trust the model to use the grounding tool effectively with the provided prompt.
+                tools: [{ "google_search": {} }], 
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    // Check for rate limiting and throw error
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! Status: ${response.status}. Body: ${errorText}`);
+                }
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const text = candidate.content.parts[0].text;
+                    
+                    let sources = [];
+                    const groundingMetadata = candidate.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                            .map(attribution => ({
+                                uri: attribution.web?.uri,
+                                title: attribution.web?.title,
+                            }))
+                            .filter(source => source.uri && source.title);
+                    }
+                    
+                    displayMessage(text, false, sources);
+
+                } else {
+                    displayMessage("Xin lỗi, tôi không thể tạo ra câu trả lời. Vui lòng thử lại với một câu hỏi khác.", false);
+                }
+
+            } catch (error) {
+                console.error("Gemini API Error (Attempt " + (retryCount + 1) + "):", error);
+                
+                // Exponential Backoff implementation (retry logic)
+                if (retryCount < 3) {
+                    const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    // Recursive call for retry
+                    await fetchGeminiResponse(prompt, retryCount + 1); 
+                } else {
+                    displayMessage("Xin lỗi, có lỗi xảy ra khi kết nối với AI. Vui lòng kiểm tra kết nối mạng và thử lại sau.", false);
+                }
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Handle form submission
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const prompt = chatInput.value.trim();
+            if (prompt === "") return;
+
+            // 1. Display user message
+            displayMessage(prompt, true);
+            chatInput.value = ""; // Clear input
+
+            // 2. Fetch AI response
+            await fetchGeminiResponse(prompt);
+        });
+
+    </script>
+
+</body>
+</html>
